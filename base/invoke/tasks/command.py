@@ -20,11 +20,14 @@ def run(command, error_on_failure=True):
     output = ''
     for line in process.stdout:
         output += line
-        print(
-            line.encode(sys.getdefaultencoding(), errors='backslashreplace').decode(sys.getdefaultencoding()),
-            end='',
-            flush=True
-        )
+        try:
+            print(
+                line.encode(sys.getdefaultencoding(), errors='backslashreplace').decode(sys.getdefaultencoding()),
+                end='',
+                flush=True
+            )
+        except UnicodeEncodeError:
+            pass
 
     process.wait()
     process.stdout = output
