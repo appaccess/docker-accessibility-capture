@@ -1,0 +1,26 @@
+{# #############################################################################
+# This file compiles to Dockerfile.
+############################################################################ -#}
+#
+# This file compiled from Dockerfile.in.
+#
+
+{% set current_dockerfile_config = dockerfile.main -%}
+
+FROM {{ current_dockerfile_config.base_image }}
+
+{# #############################################################################
+# Core configuration of the environment. We should always include these.
+############################################################################ -#}
+{% include 'base/dockerfile/environment.Dockerfile' %}
+
+{% include 'base/dockerfile/apt-get-essentials.Dockerfile' %}
+
+{# #############################################################################
+# Different runtimes we may want to include.
+#
+# {% include 'base/dockerfile/python.Dockerfile' %}
+# {% include 'base/dockerfile/ruby.Dockerfile' %}
+# {% include 'base/dockerfile/node.Dockerfile' %}
+############################################################################ -#}
+{# This comment gives us a newline at the end of the generated file #}
