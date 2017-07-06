@@ -81,6 +81,7 @@ RUN apt-get -qq clean && \
         dos2unix \
     && \
     apt-get -qq clean
+RUN sudo apt-get update
 RUN sudo apt-get install -y software-properties-common
 
 RUN sudo add-apt-repository ppa:webupd8team/java
@@ -113,11 +114,19 @@ RUN curl -sL "${ANDROID_SDK_URL}" | tar xz --no-same-owner -C /usr/local
 RUN echo y | android update sdk --no-ui --all --filter "${ANDROID_COMPONENTS}"
 
 #
+# For ARM video emulation
+#
+
+RUN DEBIAN_FRONTEND=noninteractive apt-get install -y libqt5widgets5
+ENV QT_QPA_PLATFORM offscreen
+ENV LD_LIBRARY_PATH ${LD_LIBRARY_PATH}:${ANDROID_HOME}/tools/lib64
+
+#
 # https://github.com/chuross/docker/blob/master/android-emulator/Dockerfile
 #
 
 ARG TARGET_API="android-24"
-ARG STORAGE_SIZE="128M"
+ARG STORAGE_SIZE="256M"
 ARG SKIN="QVGA"
 
 ENV ANDROID_TARGET_API $TARGET_API
@@ -140,6 +149,7 @@ RUN rm -rf platforms/$ANDROID_TARGET_API
 RUN echo y | android update sdk --no-ui --all --filter "${ANDROID_EMULATOR_COMPONENTS}"
 
 RUN android list targets \
+      && android list sdk -a -e -u \
       && echo no | android create avd --force \
                                   -n $ANDROID_EMULATOR_NAME \
                                   -t $ANDROID_TARGET_API \
