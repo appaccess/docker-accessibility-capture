@@ -4,18 +4,17 @@ ip=$(ifconfig  | grep 'inet addr:'| grep -v '127.0.0.1' | cut -d: -f2 | awk '{ p
 socat tcp-listen:$ANDROID_EMULATOR_PORT,bind=$ip,fork tcp:127.0.0.1:$ANDROID_EMULATOR_PORT &
 socat tcp-listen:$ADB_PORT,bind=$ip,fork tcp:127.0.0.1:$ADB_PORT &
 
-echo "update check 4"
-
-emulator64-arm -avd $ANDROID_EMULATOR_NAME \
+/opt/android-sdk-linux/emulator/emulator64-arm -avd "docker-accessibility-capture" \
                   -port $ANDROID_EMULATOR_PORT \
                   -no-boot-anim \
                   -no-window \
                   -no-audio \
-                  #-no-snapshot-save \
-                  -gpu off \
+                  -gpu swiftshader \
 				  -verbose \
+
+                  #-no-snapshot-save \
 				  #-qemu -usbdevice tablet -vnc :0
-                  &
+
 adb wait-for-device
 adb devices
 adb logcat
