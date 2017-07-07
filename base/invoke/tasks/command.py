@@ -13,19 +13,22 @@ def run(command, error_on_failure=True):
         command,
         shell=True,
         stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        universal_newlines=True
+        stderr=subprocess.PIPE
     )
 
     output = ''
     for line in process.stdout:
+        line = str(line, encoding='utf-8')
+
         output += line
         try:
             print(
-                line.encode(sys.getdefaultencoding(), errors='backslashreplace').decode(sys.getdefaultencoding()),
+                line.encode(encoding=sys.stdout.encoding, errors='backslashreplace').decode(encoding=sys.stdout.encoding),
                 end='',
                 flush=True
             )
+        except UnicodeDecodeError:
+            pass
         except UnicodeEncodeError:
             pass
 

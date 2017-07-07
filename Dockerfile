@@ -90,72 +90,95 @@ RUN echo oracle-java8-installer shared/accepted-oracle-license-v1-1 select true 
 RUN sudo apt-get install -y oracle-java8-installer
 RUN sudo apt-get install -y oracle-java8-set-default
 
-#
-# https://github.com/chuross/docker/blob/master/android-java/8/Dockerfile
-#
+########
+########
+######## https://github.com/bitrise-docker/android/blob/master/Dockerfile
+########
+########
 
-RUN dpkg --add-architecture i386 \
-  && apt-get -yq update \
-  && apt-get -yq install libncurses5:i386 libstdc++6:i386 zlib1g:i386 --no-install-recommends \
-  && apt-get clean
+# Dependencies to execute Android builds
+RUN dpkg --add-architecture i386
+RUN apt-get update -qq
+# RUN DEBIAN_FRONTEND=noninteractive apt-get install -y openjdk-8-jdk libc6:i386 libstdc++6:i386 libgcc1:i386 libncurses5:i386 libz1:i386
+RUN apt-get install -y libc6:i386 libstdc++6:i386 libgcc1:i386 libncurses5:i386 libz1:i386 unzip
 
-# Android arguments
-ARG ANDROID_SDK_VERSION="24.4.1"
 
-ENV ANDROID_SDK_URL http://dl.google.com/android/android-sdk_r${ANDROID_SDK_VERSION}-linux.tgz
-ENV ANDROID_HOME /usr/local/android-sdk-linux
-ENV PATH ${ANDROID_HOME}/tools:$ANDROID_HOME/platform-tools:$PATH
+# ------------------------------------------------------
+# --- Download Android SDK tools into $ANDROID_HOME
 
-# Android components
-ENV ANDROID_COMPONENTS platform-tools
+ENV ANDROID_HOME /opt/android-sdk-linux
 
-# install Android
-RUN curl -sL "${ANDROID_SDK_URL}" | tar xz --no-same-owner -C /usr/local
-RUN echo y | android update sdk --no-ui --all --filter "${ANDROID_COMPONENTS}"
+RUN cd /opt \
+    && wget -q https://dl.google.com/android/repository/sdk-tools-linux-3859397.zip -O android-sdk-tools.zip \
+    && unzip -q android-sdk-tools.zip -d ${ANDROID_HOME} \
+    && rm -f android-sdk-tools.zip
 
-#
-# For ARM video emulation
-#
+ENV PATH ${PATH}:${ANDROID_HOME}/tools:${ANDROID_HOME}/tools/bin:${ANDROID_HOME}/platform-tools
 
-RUN DEBIAN_FRONTEND=noninteractive apt-get install -y libqt5widgets5
-ENV QT_QPA_PLATFORM offscreen
-ENV LD_LIBRARY_PATH ${LD_LIBRARY_PATH}:${ANDROID_HOME}/tools/lib64
 
-#
-# https://github.com/chuross/docker/blob/master/android-emulator/Dockerfile
-#
 
-ARG TARGET_API="android-24"
-ARG STORAGE_SIZE="256M"
-ARG SKIN="QVGA"
-
-ENV ANDROID_TARGET_API $TARGET_API
-ENV ANDROID_EMULATOR_STORAGE_SIZE $STORAGE_SIZE
-ENV ANDROID_EMULATOR_SKIN $SKIN
-ENV ANDROID_EMULATOR_MEMORY 1024
-ENV ANDROID_EMULATOR_NAME "armeabi-v7a-${ANDROID_TARGET_API}"
-ENV ANDROID_EMULATOR_COMPONENTS $ANDROID_TARGET_API,sys-img-${ANDROID_EMULATOR_NAME}
-ENV ANDROID_EMULATOR_PATH $ANDROID_HOME/../emulators
-ENV ANDROID_EMULATOR_PORT 5554
-ENV ADB_PORT 5555
-
-EXPOSE $ADB_PORT
-EXPOSE $ANDROID_EMULATOR_PORT
 
 RUN apt-get install -y socat net-tools
 
-WORKDIR $ANDROID_HOME
-RUN rm -rf platforms/$ANDROID_TARGET_API
-RUN echo y | android update sdk --no-ui --all --filter "${ANDROID_EMULATOR_COMPONENTS}"
 
-RUN android list targets \
-      && android list sdk -a -e -u \
-      && echo no | android create avd --force \
-                                  -n $ANDROID_EMULATOR_NAME \
-                                  -t $ANDROID_TARGET_API \
-                                  -c $ANDROID_EMULATOR_STORAGE_SIZE \
-                                  -s $ANDROID_EMULATOR_SKIN \
-      && echo hw.ramSize=$ANDROID_EMULATOR_MEMORY >> ~/.android/avd/${ANDROID_EMULATOR_NAME}.ini
+
+
+# ------------------------------------------------------
+# --- Install Android SDKs and other build packages
+
+# To get a full list of available options you can use:
+# RUN sdkmanager --list --verbose --channel=3
+RUN sdkmanager --list --verbose
+
+# Accept "android-sdk-license" before installing components, no need to echo y for each component
+# License is valid for all the standard components in versions installed from this file
+# Non-standard components: MIPS system images, preview versions, GDK (Google Glass) and Android Google TV require separate licenses, not accepted there
+RUN mkdir -p ${ANDROID_HOME}/licenses
+RUN echo 8933bad161af4178b1185d1a37fbf41ea5269c55 > ${ANDROID_HOME}/licenses/android-sdk-license
+
+# Platform tools
+RUN sdkmanager "platform-tools"
+
+# SDKs
+RUN sdkmanager "platforms;android-24"
+
+# build tools
+# Please keep these in descending order!
+RUN sdkmanager "build-tools;24.0.3"
+
+# Android System Image for emulator
+RUN sdkmanager "system-images;android-24;default;armeabi-v7a"
+
+# Need the canary build for the swiftshader support
+RUN echo yes | sdkmanager --channel=3 "emulator"
+
+RUN sdkmanager --list --verbose
+
+
+
+
+RUN echo no | avdmanager create avd -f -n "docker-accessibility-capture" -k "system-images;android-24;default;armeabi-v7a" -c 128M
+
+RUN echo hw.ramSize=1024 >> ~/.android/avd/docker-accessibility-capture.ini
+RUN echo hw.gpu.enabled=yes >> ~/.android/avd/docker-accessibility-capture.ini
+RUN echo hw.gpu.mode=swiftshader >> ~/.android/avd/docker-accessibility-capture.ini
+
+RUN cat ~/.android/avd/docker-accessibility-capture.ini
+
+
+
+
+ENV ANDROID_EMULATOR_PORT 5554
+ENV ADB_PORT 5555
+
+
+
+
+
+RUN apt-get install -y libgl1-mesa-dev
+
+ENV QT_QPA_PLATFORM offscreen
+ENV LD_LIBRARY_PATH ${LD_LIBRARY_PATH}:/opt/android-sdk-linux/emulator/lib64/:/opt/android-sdk-linux/emulator/lib64/qt/lib:/opt/android-sdk-linux/emulator/lib64/gles_swiftshader
 
 
 
